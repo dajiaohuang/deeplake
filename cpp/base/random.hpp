@@ -65,7 +65,7 @@ inline std::array<T, size> random_array()
     } else if constexpr (sizeof(T) == 1) {
         // Handle 8-bit types separately
         using dist_type = std::conditional_t<std::is_signed_v<T>, int, unsigned int>;
-        std::uniform_int_distribution<unsigned int> value_dist{std::numeric_limits<T>::min(), std::numeric_limits<T>::max()};
+        std::uniform_int_distribution<dist_type> value_dist{std::numeric_limits<T>::min(), std::numeric_limits<T>::max()};
         auto value_gen = [&value_dist, &mersenne_engine]() {
             return static_cast<T>(value_dist(mersenne_engine));
         };
