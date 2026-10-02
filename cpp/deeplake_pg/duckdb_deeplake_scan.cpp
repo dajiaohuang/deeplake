@@ -208,6 +208,9 @@ duckdb::unique_ptr<duckdb::FunctionData> deeplake_scan_bind(duckdb::ClientContex
 base::function<async::promise<icm::vector<icm::roaring>>()>
 try_get_index_searcher(heimdall::column_view_ptr column_view, const duckdb::ConstantFilter& filter)
 {
+    if (filter.constant.IsNull()) {
+        return {};
+    }
     base::function<async::promise<icm::vector<icm::roaring>>()> result;
     auto index_holder = column_view->index_holder();
     ASSERT(index_holder != nullptr);
@@ -264,6 +267,11 @@ try_get_index_searcher(heimdall::column_view_ptr column_view, const duckdb::Cons
 base::function<async::promise<icm::vector<icm::roaring>>()>
 try_get_index_searcher(heimdall::column_view_ptr column_view, const duckdb::InFilter& filter)
 {
+    for (const duckdb::Value& value : filter.values) {
+        if (value.IsNull()) {
+            return {};
+        }
+    }
     query_core::inverted_index_search_info info;
     info.column_name = column_view->name();
     info.op = query_core::relational_operator::equals;
