@@ -1,107 +1,158 @@
-import importlib.util
+"""Import the real wrapper normally; isolate unavailable training dependencies.
+
+These exercise wrapper retry behavior, not a full MMSeg/Deep Lake training run.
+The real exception and array helper modules are imported from this source tree.
+"""
+
+import importlib
 import sys
-import types
 from pathlib import Path
+from types import ModuleType, SimpleNamespace
 
 import pytest
 
 
-class InvalidImageError(Exception):
-    pass
+@pytest.fixture
+def wrapper_module(monkeypatch):
+    source = Path(__file__).resolve().parents[1] / "deeplake"
+    for name in list(sys.modules):
+        if name == "deeplake" or name.startswith("deeplake."):
+            monkeypatch.delitem(sys.modules, name)
 
+    def module(name, package_path=None, **attrs):
+        value = ModuleType(name)
+        if package_path is not None:
+            value.__path__ = [str(package_path)]
+        value.__dict__.update(attrs)
+        monkeypatch.setitem(sys.modules, name, value)
 
-class InvalidSegmentError(Exception):
-    pass
-
-
-def _load_dataset_class(monkeypatch):
-    torch = types.ModuleType("torch")
-    torch.__path__ = []
-    torch_utils = types.ModuleType("torch.utils")
-    torch_utils.__path__ = []
-    torch_data = types.ModuleType("torch.utils.data")
-    torch_data.Dataset = object
-    monkeypatch.setitem(sys.modules, "torch", torch)
-    monkeypatch.setitem(sys.modules, "torch.utils", torch_utils)
-    monkeypatch.setitem(sys.modules, "torch.utils.data", torch_data)
-
-    prettytable = types.ModuleType("prettytable")
-    prettytable.PrettyTable = object
-    monkeypatch.setitem(sys.modules, "prettytable", prettytable)
-
-    mmcv = types.ModuleType("mmcv")
-    mmcv.__path__ = []
-    mmcv_utils = types.ModuleType("mmcv.utils")
-    mmcv_utils.print_log = lambda *args, **kwargs: None
-    monkeypatch.setitem(sys.modules, "mmcv", mmcv)
-    monkeypatch.setitem(sys.modules, "mmcv.utils", mmcv_utils)
-
-    mmseg = types.ModuleType("mmseg")
-    mmseg.__path__ = []
-    mmseg_core = types.ModuleType("mmseg.core")
-    mmseg_core.eval_metrics = lambda *args, **kwargs: None
-    mmseg_core.intersect_and_union = lambda *args, **kwargs: None
-    mmseg_core.pre_eval_to_metrics = lambda *args, **kwargs: None
-    monkeypatch.setitem(sys.modules, "mmseg", mmseg)
-    monkeypatch.setitem(sys.modules, "mmseg.core", mmseg_core)
-
-    for name in (
-        "deeplake",
-        "deeplake.integrations",
-        "deeplake.integrations.mm",
-        "deeplake.integrations.mmseg",
-    ):
-        package = types.ModuleType(name)
-        package.__path__ = []
-        monkeypatch.setitem(sys.modules, name, package)
-
-    exceptions = types.ModuleType("deeplake.integrations.mm.exceptions")
-    exceptions.InvalidImageError = InvalidImageError
-    exceptions.InvalidSegmentError = InvalidSegmentError
-    monkeypatch.setitem(sys.modules, exceptions.__name__, exceptions)
-    upcast = types.ModuleType("deeplake.integrations.mm.upcast_array")
-    upcast.upcast_array = lambda value: value
-    monkeypatch.setitem(sys.modules, upcast.__name__, upcast)
-
-    source = (
-        Path(__file__).resolve().parents[1]
-        / "deeplake"
-        / "integrations"
-        / "mmseg"
-        / "mmseg_dataset_.py"
+    module("deeplake", source, Dataset=object)
+    module("deeplake.integrations", source / "integrations")
+    module("deeplake.integrations.mm", source / "integrations/mm")
+    module("deeplake.integrations.mmseg", source / "integrations/mmseg")
+    module("mmseg", [])
+    module(
+        "mmseg.core",
+        eval_metrics=None,
+        intersect_and_union=None,
+        pre_eval_to_metrics=None,
     )
-    spec = importlib.util.spec_from_file_location("mmseg_dataset_under_test", source)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module.MMSegTorchDataset
+    module("mmcv", [])
+    module("mmcv.utils", print_log=lambda *a, **k: None)
+    module("prettytable", PrettyTable=object)
+    before_import = set(sys.modules)
+    loaded = importlib.import_module("deeplake.integrations.mmseg.mmseg_dataset_")
+    assert (
+        Path(loaded.__file__).resolve()
+        == source / "integrations/mmseg/mmseg_dataset_.py"
+    )
+    try:
+        yield loaded
+    finally:
+        for name in set(sys.modules) - before_import:
+            if name.startswith("deeplake."):
+                sys.modules.pop(name, None)
 
 
-def test_initial_consecutive_invalid_samples_advance_to_next_valid(monkeypatch):
-    dataset_class = _load_dataset_class(monkeypatch)
-
-    class Column:
-        name = "image"
-
-    class Schema:
-        columns = [Column()]
+def make_dataset(
+    wrapper_module, size=3, invalid=(), transform=None, segment_error=False
+):
+    error = importlib.import_module(
+        "deeplake.integrations.mm.exceptions"
+    ).InvalidImageError
 
     class Dataset:
-        schema = Schema()
+        schema = SimpleNamespace(columns=[SimpleNamespace(name="image")])
 
         def __init__(self):
+            self.invalid = set(invalid)
             self.read_indices = []
 
         def __len__(self):
-            return 3
+            return size
 
         def __getitem__(self, index):
+            assert 0 <= index < size, "retry must stay inside dataset bounds"
             self.read_indices.append(index)
-            if index in (0, 1):
-                raise InvalidImageError("image", "decode failed")
+            assert (
+                len(self.read_indices) <= size * 2 + 1
+            ), "repeated invalid fallback did not terminate"
+            if index in self.invalid:
+                raise error("image", ValueError("decode failed"))
             return {"image": index}
 
     source = Dataset()
-    wrapped = dataset_class(source)
+    return source, wrapper_module.MMSegTorchDataset(source, transform=transform)
 
+
+def test_initial_consecutive_invalid_images_advance_to_next_valid(wrapper_module):
+    source, wrapped = make_dataset(wrapper_module, invalid=(0, 1))
     assert wrapped[0] == {"image": 2}
     assert source.read_indices == [0, 1, 2]
+    assert wrapped.last_successful_index == 2
+
+
+def test_all_invalid_is_bounded_and_reports_no_valid_sample(wrapper_module):
+    source, wrapped = make_dataset(wrapper_module, invalid=(0, 1, 2))
+    with pytest.raises(RuntimeError, match="No valid sample found"):
+        wrapped[2]
+    assert source.read_indices == [2, 0, 1]
+    assert wrapped.last_successful_index == -1
+
+
+def test_known_successful_fallback_is_retained(wrapper_module):
+    source, wrapped = make_dataset(wrapper_module, invalid=(0,))
+    assert wrapped[2] == {"image": 2}
+    assert wrapped[0] == {"image": 2}
+    assert source.read_indices == [2, 0, 2]
+
+
+def test_formerly_good_fallback_becoming_invalid_does_not_loop(wrapper_module):
+    source, wrapped = make_dataset(wrapper_module)
+    wrapped[2]
+    source.invalid.update((0, 2))
+    assert wrapped[0] == {"image": 1}
+    assert source.read_indices == [2, 0, 2, 1]
+    assert wrapped.last_successful_index == 1
+
+
+def test_pipeline_none_is_rejected_before_recording_success(wrapper_module):
+    source, wrapped = make_dataset(
+        wrapper_module, transform=lambda row: None if row["image"] != 2 else row
+    )
+    assert wrapped[0] == {"image": 2}
+    assert source.read_indices == [0, 1, 2]
+    assert wrapped.last_successful_index == 2
+
+
+def test_all_pipeline_rejections_are_bounded(wrapper_module):
+    source, wrapped = make_dataset(wrapper_module, transform=lambda row: None)
+    with pytest.raises(RuntimeError, match="No valid sample found"):
+        wrapped[0]
+    assert source.read_indices == [0, 1, 2]
+    assert wrapped.last_successful_index == -1
+
+
+@pytest.mark.parametrize("index", [-4, 3])
+def test_out_of_range_input_remains_index_error(wrapper_module, index):
+    source, wrapped = make_dataset(wrapper_module)
+    with pytest.raises(IndexError):
+        wrapped[index]
+    assert source.read_indices == []
+
+
+def test_negative_index_and_empty_dataset(wrapper_module):
+    source, wrapped = make_dataset(wrapper_module)
+    assert wrapped[-1] == {"image": 2}
+    assert source.read_indices == [2]
+    source, wrapped = make_dataset(wrapper_module, size=0)
+    with pytest.raises(IndexError):
+        wrapped[0]
+    assert source.read_indices == []
+
+
+def test_invalid_segments_also_advance_to_valid_sample(wrapper_module):
+    source, wrapped = make_dataset(wrapper_module, invalid=(0, 1), segment_error=True)
+    assert wrapped[0] == {"image": 2}
+    assert source.read_indices == [0, 1, 2]
+    assert wrapped.last_successful_index == 2
