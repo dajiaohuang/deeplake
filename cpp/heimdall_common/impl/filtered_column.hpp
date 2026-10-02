@@ -150,10 +150,11 @@ private:
                     std::vector<int64_t> new_indices;
                     new_indices.reserve(result.indices.size());
                     for (auto source_idx : result.indices) {
-                        // Expand to every matching view position that passes the caller's filter.
+                        // Preserve the first-match behavior, restricted to eligible view positions.
                         for (int64_t i = 0; i < indices.size(); ++i) {
                             if (indices[i] == source_idx && (!filter || filter->contains(i))) {
                                 new_indices.push_back(i);
+                                break;
                             }
                         }
                     }
