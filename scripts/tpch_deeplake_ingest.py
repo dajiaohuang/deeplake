@@ -255,8 +255,7 @@ def ingest_one_table(table_name, args):
 
         data_file = Path(args.data_dir) / f"{table_name}.tbl"
         if not data_file.exists():
-            log(f"[{table_name}] Data file not found: {data_file}, skipping")
-            return (table_name, 0, 0.0)
+            raise FileNotFoundError(f"[{table_name}] Data file not found: {data_file}")
 
         log(f"[{table_name}] Loading on backend {backend_addr}...")
 
