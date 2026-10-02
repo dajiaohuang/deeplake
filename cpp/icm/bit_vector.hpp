@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <cstring>
 #include <iostream>
+#include <limits>
 #include <span>
 #include <vector>
 
@@ -737,18 +738,19 @@ public:
         size_t size;
         std::memcpy(&size, buffer.data(), sizeof(size_t));
 
+        if (size > static_cast<size_t>(std::numeric_limits<int64_t>::max() - (bits_per_block - 1))) {
+            throw exception("Invalid bit_vector size in serialized buffer");
+        }
+
+        const size_t expected_blocks = size / bits_per_block + (size % bits_per_block != 0);
+        const size_t expected_buffer_size = sizeof(size_t) + expected_blocks * sizeof(block_type);
+        if (buffer.size() != expected_buffer_size) {
+            throw exception("Serialized bit_vector buffer has an invalid size");
+        }
+
         bit_vector result(size);
-        size_t blocks_size = (buffer.size() - sizeof(size_t)) / sizeof(block_type);
-
-        // Only copy data if there are blocks to copy and the buffer is large enough
-        if (blocks_size > 0 && !result.blocks_.empty()) {
-            // Validate that the buffer contains enough data for the calculated blocks
-            size_t expected_buffer_size = sizeof(size_t) + blocks_size * sizeof(block_type);
-            if (buffer.size() < expected_buffer_size) {
-                throw std::runtime_error("Buffer too small for bit_vector data");
-            }
-
-            std::memcpy(result.blocks_.data(), buffer.data() + sizeof(size_t), blocks_size * sizeof(block_type));
+        if (expected_blocks > 0) {
+            std::memcpy(result.blocks_.data(), buffer.data() + sizeof(size_t), expected_blocks * sizeof(block_type));
         }
 
         return result;
