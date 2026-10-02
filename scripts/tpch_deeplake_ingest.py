@@ -349,6 +349,7 @@ def main():
 
     # Phase 2: Load data
     overall_start = time.time()
+    failed_tables = []
 
     if args.sequential:
         # Sequential: one connection, all tables
@@ -371,14 +372,20 @@ def main():
                 try:
                     results.append(future.result())
                 except Exception as e:
+                    failed_tables.append(table_name)
                     log(f"[{table_name}] FAILED: {e}")
 
     overall_elapsed = time.time() - overall_start
     total_rows = sum(r[1] for r in results)
 
-    log(f"\nDone. {total_rows:,} total rows in {overall_elapsed:.1f}s (wall time)")
+    if failed_tables:
+        log(f"\nFinished with {len(failed_tables)} failed table(s): {', '.join(failed_tables)}")
+    else:
+        log(f"\nDone. {total_rows:,} total rows in {overall_elapsed:.1f}s (wall time)")
     for table_name, row_count, elapsed in sorted(results, key=lambda x: x[0]):
         log(f"  {table_name:<12} {row_count:>12,} rows  {elapsed:>7.1f}s")
+    if failed_tables:
+        sys.exit(1)
 
 
 if __name__ == '__main__':
