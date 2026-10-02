@@ -418,17 +418,20 @@ class MMDetTorchDataset(Dataset):
             try:
                 sample = self.dataset[idx]
                 if self.transform:
-                    return self.transform(sample)
+                    result = self.transform(sample)
                 else:
                     out = {}
                     for col in self.column_names:
                         out[col] = sample[col]
-                    return out
+                    result = out
+                self.last_successful_index = idx
+                return result
             except InvalidImageError as e:
                 print(f"Error processing data at index {idx}: {e}")
                 if self.last_successful_index == -1:
-                    self.last_successful_index = idx + 1
-                idx = self.last_successful_index
+                    idx += 1
+                else:
+                    idx = self.last_successful_index
                 continue
 
 
