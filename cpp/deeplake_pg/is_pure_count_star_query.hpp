@@ -52,6 +52,11 @@ bool is_pure_count_star_query(Query* parse)
         return false;
     }
 
+    // CountExecutor returns one row and does not apply these plan-level clauses.
+    if (parse->limitCount != nullptr || parse->limitOffset != nullptr) {
+        return false;
+    }
+
     // Must have exactly one target: COUNT(*)
     if (parse->targetList == NIL || list_length(parse->targetList) != 1) {
         return false;
