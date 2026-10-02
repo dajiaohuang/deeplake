@@ -8,7 +8,7 @@ namespace deeplake_core::impl {
 /**
  * @brief Empirically calculate the compression ratio for a given dtype and compression.
  *
- * Practically lz4 compresses json objects by a factor of 7, and other types by a factor of 3.
+ * Practically lz4 compresses json objects by a factor of 7, and other types by a factor of 5.
  * If there's no compression, the ratio is 1.
  */
 inline float calculate_compression_ratio(nd::dtype dtype,
