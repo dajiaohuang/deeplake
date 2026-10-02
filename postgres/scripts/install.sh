@@ -10,11 +10,6 @@ handle_error() {
   exit "$exit_code"
 }
 
-# Check sudo
-if [ "$EUID" -ne 0 ]; then
-  handle_error 1 "Cannot escalate privileges. Run the script as root or via sudo."
-fi
-
 # Logger Function
 log() {
   local message="$1"
@@ -33,6 +28,11 @@ log() {
 
   echo -e "${color}${timestamp} - ${message}${endcolor}"
 }
+
+# Check sudo
+if [ "$EUID" -ne 0 ]; then
+  handle_error 1 "Cannot escalate privileges. Run the script as root or via sudo."
+fi
 
 # Function to check for command availability
 command_exists() {
