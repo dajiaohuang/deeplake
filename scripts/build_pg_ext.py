@@ -178,7 +178,8 @@ def run(mode: str, incremental: bool, deeplake_link_type: str = None, pg_version
 
     finally:
         os.chdir("..")
-        write_mode(mode)
+
+    write_mode(mode)
 
 def read_mode():
     try:
