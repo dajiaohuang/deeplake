@@ -755,55 +755,37 @@ PGDLLEXPORT Datum deeplake_cosine_similarity(PG_FUNCTION_ARGS)
 
 PGDLLEXPORT Datum deeplake_vector_lt(PG_FUNCTION_ARGS)
 {
-    ArrayType* left = PG_GETARG_ARRAYTYPE_P(0);
-    ArrayType* right = PG_GETARG_ARRAYTYPE_P(1);
-    PG_RETURN_BOOL(DatumGetBool(DirectFunctionCall2(array_lt, PointerGetDatum(left), PointerGetDatum(right))));
+    return array_lt(fcinfo);
 }
 
 PGDLLEXPORT Datum deeplake_vector_le(PG_FUNCTION_ARGS)
 {
-    ArrayType* left = PG_GETARG_ARRAYTYPE_P(0);
-    ArrayType* right = PG_GETARG_ARRAYTYPE_P(1);
-    PG_RETURN_BOOL(DatumGetBool(DirectFunctionCall2(array_le, PointerGetDatum(left), PointerGetDatum(right))));
+    return array_le(fcinfo);
 }
 
 PGDLLEXPORT Datum deeplake_vector_eq(PG_FUNCTION_ARGS)
 {
-    ArrayType* left = PG_GETARG_ARRAYTYPE_P(0);
-    ArrayType* right = PG_GETARG_ARRAYTYPE_P(1);
-    PG_RETURN_BOOL(DatumGetBool(DirectFunctionCall2(array_eq, PointerGetDatum(left), PointerGetDatum(right))));
+    return array_eq(fcinfo);
 }
 
 PGDLLEXPORT Datum deeplake_vector_ne(PG_FUNCTION_ARGS)
 {
-    ArrayType* left = PG_GETARG_ARRAYTYPE_P(0);
-    ArrayType* right = PG_GETARG_ARRAYTYPE_P(1);
-    PG_RETURN_BOOL(DatumGetBool(DirectFunctionCall2(array_ne, PointerGetDatum(left), PointerGetDatum(right))));
+    return array_ne(fcinfo);
 }
 
 PGDLLEXPORT Datum deeplake_vector_ge(PG_FUNCTION_ARGS)
 {
-    ArrayType* left = PG_GETARG_ARRAYTYPE_P(0);
-    ArrayType* right = PG_GETARG_ARRAYTYPE_P(1);
-    PG_RETURN_BOOL(DatumGetBool(DirectFunctionCall2(array_ge, PointerGetDatum(left), PointerGetDatum(right))));
+    return array_ge(fcinfo);
 }
 
 PGDLLEXPORT Datum deeplake_vector_gt(PG_FUNCTION_ARGS)
 {
-    ArrayType* left = PG_GETARG_ARRAYTYPE_P(0);
-    ArrayType* right = PG_GETARG_ARRAYTYPE_P(1);
-    PG_RETURN_BOOL(DatumGetBool(DirectFunctionCall2(array_gt, PointerGetDatum(left), PointerGetDatum(right))));
+    return array_gt(fcinfo);
 }
 
 PGDLLEXPORT Datum deeplake_vector_compare(PG_FUNCTION_ARGS)
 {
-    ArrayType* left = PG_GETARG_ARRAYTYPE_P(0);
-    ArrayType* right = PG_GETARG_ARRAYTYPE_P(1);
-    if (DatumGetBool(DirectFunctionCall2(array_eq, PointerGetDatum(left), PointerGetDatum(right)))) {
-        PG_RETURN_INT32(0);
-    }
-    PG_RETURN_INT32(
-        DatumGetBool(DirectFunctionCall2(array_lt, PointerGetDatum(left), PointerGetDatum(right))) ? -1 : 1);
+    return btarraycmp(fcinfo);
 }
 
 PGDLLEXPORT Datum deeplake_maxsim(PG_FUNCTION_ARGS)
