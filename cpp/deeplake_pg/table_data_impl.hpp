@@ -110,6 +110,10 @@ inline void table_data::commit(bool show_progress)
     }
     streamers_.reset();
     force_refresh();
+    // Publish the new version only after the dataset commit succeeds. Earlier
+    // notifications could let another backend cache a version before the rows
+    // were visible in the committed dataset.
+    table_version_tracker::increment_version(table_oid_);
 }
 
 inline void table_data::rollback()

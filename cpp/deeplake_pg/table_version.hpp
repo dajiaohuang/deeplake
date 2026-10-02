@@ -43,7 +43,7 @@ public:
     // Get required shared memory size
     static Size get_shmem_size();
 
-    // Increment version for a table (called on writes)
+    // Increment version for a table after its writes are committed
     static void increment_version(Oid table_oid);
 
     // Get current version for a table (called on reads)

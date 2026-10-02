@@ -46,7 +46,6 @@ extern "C" {
 #include "progress_utils.hpp"
 #include "table_scan.hpp"
 #include "table_storage.hpp"
-#include "table_version.hpp"
 
 #include <cstddef>
 
@@ -1021,8 +1020,6 @@ void deeplake_table_am_routine::tuple_insert(
     // Report to statistics collector
     pgstat_count_heap_insert(rel, 1);
 
-    // Increment version to notify other backends
-    table_version_tracker::increment_version(table_id);
 }
 
 void deeplake_table_am_routine::multi_insert(Relation rel,
@@ -1056,8 +1053,6 @@ void deeplake_table_am_routine::multi_insert(Relation rel,
     // Report to statistics collector
     pgstat_count_heap_insert(rel, nslots);
 
-    // Increment version to notify other backends
-    table_version_tracker::increment_version(table_id);
 }
 
 TM_Result deeplake_table_am_routine::tuple_delete(Relation rel,
@@ -1082,9 +1077,6 @@ TM_Result deeplake_table_am_routine::tuple_delete(Relation rel,
 
     // Report to statistics collector
     pgstat_count_heap_delete(rel);
-
-    // Increment version to notify other backends
-    table_version_tracker::increment_version(table_id);
 
     return TM_Ok;
 }
@@ -1121,9 +1113,6 @@ TM_Result deeplake_table_am_routine::tuple_update(Relation rel,
     // Deeplake has no HOT updates (columnar storage), so hot_update = false
     // newpage_update also false for columnar storage simplification
     pgstat_count_heap_update(rel, false, false);
-
-    // Increment version to notify other backends
-    table_version_tracker::increment_version(table_id);
 
     return TM_Ok;
 }
