@@ -965,6 +965,8 @@ private:
             if (!bind_data_.table_data.is_column_requested(col_idx)) {
                 continue;
             }
+            const bool nullable_numeric = bind_data_.table_data.is_column_nullable(col_idx) &&
+                                          nd::dtype_is_numeric(bind_data_.table_data.get_column_view(col_idx)->dtype());
             auto& output_vector = output_.data[i];
             output_vector.SetVectorType(duckdb::VectorType::FLAT_VECTOR);
             auto& mask = duckdb::FlatVector::Validity(output_vector);
@@ -972,7 +974,7 @@ private:
             if (has_index_search()) {
                 auto cv = ((*global_state_.index_search_result)[col_idx]).shared_from_this();
                 column_promises.emplace_back(request_range_and_set_column_output(cv, i, current_row));
-            } else if (bind_data_.table_data.column_has_streamer(col_idx)) {
+            } else if (bind_data_.table_data.column_has_streamer(col_idx) && !nullable_numeric) {
                 set_streaming_column_output(i, current_row);
             } else {
                 auto cv = bind_data_.table_data.get_column_view(col_idx);
