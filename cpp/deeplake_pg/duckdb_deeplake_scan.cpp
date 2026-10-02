@@ -1029,11 +1029,7 @@ duckdb::unique_ptr<duckdb::BaseStatistics> deeplake_scan_column_statistics(duckd
         // Create base statistics for this type
         auto stats = duckdb::BaseStatistics::CreateUnknown(duckdb_type);
 
-        // Get Deeplake column view to extract statistics
-        auto col_view = td.get_column_view(column_index);
-        auto dtype = col_view->dtype();
-
-        if (nd::dtype_is_numeric(dtype) || !td.is_column_nullable(column_index)) {
+        if (!td.is_column_nullable(column_index)) {
             stats.Set(duckdb::StatsInfo::CANNOT_HAVE_NULL_VALUES);
         }
 
