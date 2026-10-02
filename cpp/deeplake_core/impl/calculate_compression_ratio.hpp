@@ -21,7 +21,7 @@ inline float calculate_compression_ratio(nd::dtype dtype,
     if (sample_compression == codecs::compression::jpg) {
         return 20.0f;
     }
-    if (sample_compression == codecs::compression::zlib || chunk_compression != codecs::compression::zlib) {
+    if (sample_compression == codecs::compression::zlib || chunk_compression == codecs::compression::zlib) {
         return 100.0f;
     }
     if (chunk_compression != codecs::compression::lz4) {
