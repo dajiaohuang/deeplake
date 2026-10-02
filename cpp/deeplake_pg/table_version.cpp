@@ -69,6 +69,7 @@ void table_version_tracker::initialize()
         version_data_->lock = &(GetNamedLWLockTranche("deeplake_versions")->lock);
         version_data_->max_tables = MAX_TRACKED_TABLES;
         version_data_->num_tables = 0;
+        version_data_->global_version = 0;
 
         // Initialize all entries
         for (int32_t i = 0; i < MAX_TRACKED_TABLES; ++i) {
@@ -95,7 +96,7 @@ table_version_entry* table_version_tracker::find_entry(Oid table_oid, bool creat
         // Create new entry
         int32_t idx = version_data_->num_tables++;
         version_data_->entries[idx].table_oid = table_oid;
-        version_data_->entries[idx].version = 0;
+        version_data_->entries[idx].version = version_data_->global_version;
         return &version_data_->entries[idx];
     }
 
@@ -110,9 +111,10 @@ void table_version_tracker::increment_version(Oid table_oid)
 
     locker lock(version_data_->lock, LW_EXCLUSIVE);
 
+    ++version_data_->global_version;
     table_version_entry* entry = find_entry(table_oid, true);
     if (entry != nullptr) {
-        ++entry->version;
+        entry->version = version_data_->global_version;
     }
 }
 
@@ -124,7 +126,9 @@ uint64_t table_version_tracker::get_version(Oid table_oid)
 
     locker lock(version_data_->lock, LW_SHARED);
 
-    uint64_t version = 0;
+    // Untracked tables share a generation so writes still invalidate their
+    // readers after the bounded per-table array reaches capacity.
+    uint64_t version = version_data_->global_version;
     table_version_entry* entry = find_entry(table_oid, false);
     if (entry != nullptr) {
         version = entry->version;

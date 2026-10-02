@@ -29,6 +29,8 @@ struct table_version_data
     LWLock* lock;
     int32_t max_tables;
     int32_t num_tables;
+    // Global generation used by relations without a per-table entry.
+    uint64_t global_version;
     table_version_entry entries[FLEXIBLE_ARRAY_MEMBER];
 };
 
