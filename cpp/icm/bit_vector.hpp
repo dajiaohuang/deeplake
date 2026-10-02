@@ -738,7 +738,8 @@ public:
         size_t size;
         std::memcpy(&size, buffer.data(), sizeof(size_t));
 
-        if (size > static_cast<size_t>(std::numeric_limits<int64_t>::max() - (bits_per_block - 1))) {
+        if (static_cast<uint64_t>(size) >
+            static_cast<uint64_t>(std::numeric_limits<int64_t>::max() - (bits_per_block - 1))) {
             throw exception("Invalid bit_vector size in serialized buffer");
         }
 
