@@ -1489,7 +1489,11 @@ static void executor_start(QueryDesc* query_desc, int32_t eflags)
     Plan* plan = query_desc->plannedstmt->planTree;
     if (plan != nullptr && IsA(plan, Limit)) {
         Limit* limitNode = (Limit*)plan;
-        if (limitNode->limitCount != nullptr) {
+        // Param and expression nodes are valid LIMIT bounds for prepared
+        // statements. query_info only uses this value as a search hint; keep
+        // its unbounded default so PostgreSQL's Limit node applies the runtime
+        // bound instead of reading a non-Const node as Const.
+        if (limitNode->limitCount != nullptr && IsA(limitNode->limitCount, Const)) {
             const auto limit = DatumGetInt32(((Const*)limitNode->limitCount)->constvalue);
             pg::query_info::current().set_limit(limit);
         }
