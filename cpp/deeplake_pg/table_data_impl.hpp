@@ -32,13 +32,13 @@ append_rows(std::shared_ptr<deeplake_api::dataset> dataset, icm::string_map<nd::
 inline void commit_dataset(std::shared_ptr<deeplake_api::dataset> dataset, bool show_progress)
 {
     constexpr auto high_num_rows = 50000;
-    const bool print_progress =
-        (show_progress && dataset->num_rows() > high_num_rows && dataset->has_uncommitted_changes());
+    const auto num_rows = dataset->num_rows();
+    const bool print_progress = (show_progress && num_rows > high_num_rows && dataset->has_uncommitted_changes());
     auto promise = async::run_on_main([ds = std::move(dataset)]() {
         return ds->commit();
     });
     if (print_progress) {
-        const std::string message = fmt::format("Committing dataset (samples: {})", dataset->num_rows());
+        const std::string message = fmt::format("Committing dataset (samples: {})", num_rows);
         pg::utils::print_progress_and_wait(std::move(promise), message);
     } else {
         promise.get_future().get();
