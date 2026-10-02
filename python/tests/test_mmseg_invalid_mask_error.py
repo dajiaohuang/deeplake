@@ -77,3 +77,13 @@ def test_missing_mask_raises_typed_invalid_segment_error(monkeypatch):
 
     with pytest.raises(InvalidSegmentError, match="mask data getting"):
         transform(sample, "image", "mask", lambda value: value)
+
+
+def test_image_only_validation_with_optional_mask_raises_typed_error(monkeypatch):
+    transform = _load_transform(monkeypatch)
+    sample = {"image": np.zeros((2, 2, 3), dtype=np.uint8)}
+
+    # MMSeg validation pipelines may collect only `img`, so the integration
+    # passes masks_tensor=None into transform for this supported path.
+    with pytest.raises(InvalidSegmentError, match="None data getting"):
+        transform(sample, "image", None, lambda value: value)
