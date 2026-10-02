@@ -48,8 +48,9 @@ class MMSegTorchDataset(Dataset):
             except (InvalidImageError, InvalidSegmentError) as e:
                 print(f"Error processing data at index {idx}: {e}")
                 if self.last_successful_index == -1:
-                    self.last_successful_index = idx + 1
-                idx = self.last_successful_index
+                    idx += 1
+                else:
+                    idx = self.last_successful_index
                 continue
 
 
