@@ -282,14 +282,14 @@ def convert(
 
             dl = link_batches()
 
+        row_offset = 0
         for counter, batch in enumerate(progress_bar(dl), start=1):
             if iterable_cols:
                 batch_size = len(batch[iterable_cols[0]])
                 for link in links:
                     link_data = link_sample_info[link]["data"]
-                    start_index = (counter - 1) * batch_size
-                    end_index = min((counter) * batch_size, len(link_data))
-                    batch[link] = link_data[start_index:end_index]
+                    batch[link] = link_data[row_offset : row_offset + batch_size]
+                row_offset += batch_size
 
             dest.append(batch)
             if counter % 100 == 0:
