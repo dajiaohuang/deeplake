@@ -9,7 +9,7 @@ using row_view = heimdall::row_view;
 
 [[nodiscard]] inline auto row_view_to_string(const row_view& r)
 {
-    return async::run_on_main([&r]() {
+    return async::run_on_main([r]() {
         return r.to_string();
     });
 }
