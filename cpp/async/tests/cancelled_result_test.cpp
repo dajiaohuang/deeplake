@@ -22,6 +22,21 @@ void queue::submit(base::function<void()>&&, int, id_type*) { std::terminate(); 
 } // namespace async
 #endif
 
+void cancelled_public_promise_drops_late_value()
+{
+    async::impl::bg_queue_promise<int> handle;
+    async::promise<int> promise(handle);
+    int callbacks = 0;
+    promise.set_callback(async::callback_type<int>([&](async::result<int>&&) { ++callbacks; }, nullptr));
+    assert(promise.cancel());
+    handle.set_value(42);
+    if (!promise.is_cancelled() || promise.is_ready() || callbacks != 0) {
+        throw std::runtime_error("late value resurrected a promise cancelled through its public API");
+    }
+    promise.set_callback(async::callback_type<int>([&](async::result<int>&&) { ++callbacks; }, nullptr));
+    assert(callbacks == 0);
+}
+
 template <typename T, typename Producer>
 void cancelled_running_producer(Producer produce)
 {
@@ -51,6 +66,7 @@ void cancelled_running_producer(Producer produce)
 
 int main()
 {
+    cancelled_public_promise_drops_late_value();
     cancelled_running_producer<int>([] { return 42; });
     cancelled_running_producer<void>([] {});
     cancelled_running_producer<int>([]() -> int { throw std::runtime_error("producer failed"); });
@@ -64,6 +80,8 @@ int main()
     async::promise<int> promise(waiting);
     auto future = promise.get_future();
     assert(promise.cancel());
+    waiting.set_value(99);
+    assert(promise.is_cancelled());
     assert(future.wait_for(std::chrono::milliseconds(0)) == std::future_status::ready);
     try {
         (void)future.get();
@@ -71,5 +89,5 @@ int main()
     } catch (const std::future_error& error) {
         assert(error.code() == std::make_error_code(std::future_errc::broken_promise));
     }
-    std::cout << "four cancelled producers, future cancellation and normal completion passed\n";
+    std::cout << "public cancel then set_value, four cancelled producers, future cancellation and normal completion passed\n";
 }
